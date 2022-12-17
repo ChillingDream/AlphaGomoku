@@ -1,5 +1,5 @@
 for i in {0..14}; do
-    python generate_episodes.py --shard $i --num_episodes 600 &
+    CUDA_VISIBLE_DEVICES='' python generate_episodes.py --shard $i --num_episodes 1000 &
 done
 wait
 python merge_shard.py

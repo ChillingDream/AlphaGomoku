@@ -8,6 +8,7 @@ import torch
 from Node import Node
 from ChessBoard import ChessBoard
 from Model import Net
+import time
 '''
 source: https://github.com/TsrmKumoko/gomoku_mcts
 '''
@@ -92,6 +93,12 @@ class Agent(object):
         self.current_node = node
         self.current_node.visits += 1
         self.chess_board.play_stone(node.move)
+        #if self.current_node.chess_board is not None:
+        #    self.chess_board = self.current_node.chess_board
+        #else:
+        #    self.chess_board = copy.deepcopy(self.chess_board)
+        #    self.chess_board.play_stone(node.move)
+        #    self.current_node.chess_board = self.chess_board
 
     def chosen_child(self) -> Node:
         '''
@@ -144,10 +151,10 @@ class Agent(object):
             vacancies = self.chess_board.adjacent_vacancies()
             if self.net is not None:
                 if self.current_node.prob is None:
-                    feature = self.net.preprocess(self.chess_board)
+                    feature = Net.preprocess(self.chess_board)
                     with torch.no_grad():
                         p, v = self.net(feature)
-                    self.current_node.prob = self.net.normalize_prob(p[0], vacancies)
+                    self.current_node.prob = Net.normalize_prob(p[0], vacancies)
                     self.current_node.eval_value = v.item()
             else:
                 self.current_node.prob = torch.ones((self.board_size, self.board_size))
@@ -186,10 +193,10 @@ class Agent(object):
             elif self.chess_board.winner == -self.current_node.color:
                 return -1
         if self.current_node.eval_value is None:
-            feature = self.net.preprocess(self.chess_board)
+            feature = Net.preprocess(self.chess_board)
             with torch.no_grad():
                 p, v = self.net(feature)
-            self.current_node.prob = self.net.normalize_prob(p[0], self.chess_board.adjacent_vacancies())
+            self.current_node.prob = Net.normalize_prob(p[0], self.chess_board.adjacent_vacancies())
             self.current_node.eval_value = v.item()
         return self.current_node.eval_value
 
@@ -206,7 +213,7 @@ class Agent(object):
             reward = -reward
         return
 
-    def search(self, move:tuple) -> None:
+    def search(self, move:tuple, start_time:float=None) -> None:
         '''
         Search the best move according to current state and play a stone.
         '''
@@ -214,7 +221,7 @@ class Agent(object):
         if self.chess_board.is_ended():
             return
         chess_board_copy = copy.deepcopy(self.chess_board)
-        for _ in range(self.max_searches):
+        for step in range(self.max_searches):
             # print('Searching: ', end='')
             # print(round(float(_) * 100 / self.max_searches), end='%\r')
             is_ended = False
@@ -237,7 +244,10 @@ class Agent(object):
             else:
                 self.back_propagate(self.roll_out())
             
+            self.chess_board = self.current_node.chess_board
             self.chess_board = copy.deepcopy(chess_board_copy)
+            if step % 10 == 0 and start_time is not None and time.clock() - start_time > 3.8:
+                break
             #self.chess_board.moves = self.chess_board.moves[0:self.root.depth]
             #self.chess_board.board = [
             #    [0 for _ in range(self.board_size)]
@@ -260,4 +270,6 @@ class Agent(object):
             prob /= total_visits
             self.episode.append((feature, prob))
         self.update_root(best_move)
+        if start_time is not None:
+            return best_move, step
         return best_move

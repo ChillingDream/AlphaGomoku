@@ -1,5 +1,6 @@
 import os
 import random
+import numpy as np
 import itertools
 from argparse import ArgumentParser
 from tqdm import trange
@@ -9,21 +10,24 @@ from Agent import Agent
 import time
 
 torch.set_num_threads(1)
-net1 = Net(15, 64)
-#net2 = Net(15, 64, num_blocks=3)
-net1.load_state_dict(torch.load('resnet5.pt', map_location='cpu'))
-#net2.load_state_dict(torch.load('new_model_block3.pt'))
+net1 = torch.jit.load('checkpoints/resnet5_int8_v1.pt')
+#net2 = torch.jit.load('checkpoints/resnet5_int8_v1.pt')
+#net1 = Net(15, 64)
+#net1.load_state_dict(torch.load('checkpoints/new_resnet5.pt', map_location='cpu'))
+#net2 = Net(15, 64, num_blocks=2)
+#net2.load_state_dict(torch.load('checkpoints/new_resnet5.pt'))
 
 
 def generate_episode(netA=None, netB=None, self_play=False, seed=0):
     random.seed(seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
     if netA is not None:
         netA.eval()
     if netB is not None:
         netB.eval()
-    agentA = Agent(max_searches=1000, net=netA)
-    agentB = Agent(max_searches=1000, net=netB)
+    agentA = Agent(max_searches=1200, net=netA)
+    agentB = Agent(max_searches=1200, net=netB)
     if self_play:
         agentA.episode = []
         agentB.episode = []
@@ -77,7 +81,7 @@ def generate_episode(netA=None, netB=None, self_play=False, seed=0):
 
 
 if __name__ == '__main__':
-    #result = [generate_episode(net1, net1, True, 3)]
+    #result = [generate_episode(net1, net1, False, 3)]
     #exit(0)
     os.makedirs('episodes_data', exist_ok=True)
     parser = ArgumentParser()

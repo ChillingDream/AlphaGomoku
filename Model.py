@@ -1,7 +1,7 @@
 import torch
 from torch import nn
-from torch.nn import functional as F
 from ChessBoard import ChessBoard
+from torch import quantization
 
 
 class ResidualBlock(nn.Module):
@@ -9,12 +9,19 @@ class ResidualBlock(nn.Module):
         super().__init__()
         self.cnn1 = nn.Conv2d(input_size, hidden_size, 3, padding=1)
         self.bn1 = nn.BatchNorm2d(hidden_size)
+        self.relu1 = nn.ReLU(True)
         self.cnn2 = nn.Conv2d(hidden_size, hidden_size, 3, padding=1)
         self.bn2 = nn.BatchNorm2d(hidden_size)
+        self.relu2 = nn.ReLU(True)
+        self.skip = nn.quantized.FloatFunctional()
     
     def forward(self, x):
-        h = F.relu(self.bn1(self.cnn1(x)))
-        return F.relu(x + self.bn2(self.cnn2(h)))
+        h = self.relu1(self.bn1(self.cnn1(x)))
+        return self.relu2(self.skip.add(x, self.bn2(self.cnn2(h))))
+    
+    def fuse(self):
+        quantization.fuse_modules(self, ['cnn1', 'bn1', 'relu1'], inplace=True)
+        quantization.fuse_modules(self, ['cnn2', 'bn2', 'relu2'], inplace=True)
 
 
 class Net(nn.Module):
@@ -24,35 +31,51 @@ class Net(nn.Module):
         super().__init__()
         self.cnn1 = nn.Conv2d(Net.num_channels, hidden_size, 5, padding=2)
         self.bn1 = nn.BatchNorm2d(hidden_size)
+        self.relu1 = nn.ReLU(inplace=True)
         self.res_blocks = nn.Sequential(
             *[ResidualBlock(hidden_size, hidden_size) for _ in range(num_blocks)]
         )
         self.p_head = nn.Sequential(
             nn.Conv2d(hidden_size, 2, 1),
             nn.BatchNorm2d(2),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Flatten(),
             nn.Linear(board_size ** 2 * 2, board_size ** 2)
         )
         self.v_head = nn.Sequential(
             nn.Conv2d(hidden_size, 1, 1),
             nn.BatchNorm2d(1),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Flatten(),
             nn.Linear(board_size ** 2, 256),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Linear(256, 1),
             nn.Tanh()
         )
+        self.quant = quantization.QuantStub()
+        self.dequant = quantization.DeQuantStub()
     
     def forward(self, x):
-        if len(x.shape) == 3:
-            x = x.unsqueeze(0)
-        x = F.relu(self.bn1(self.cnn1(x)))
+        x = self.quant(x)
+        x = x.view(-1, Net.num_channels, 15, 15)
+        x = self.relu1(self.bn1(self.cnn1(x)))
         x = self.res_blocks(x)
-        p = self.p_head(x).view(x.shape[0], *x.shape[-2:])
+        p = self.p_head(x).view(x.shape[0], 15, 15)
         v = self.v_head(x).squeeze(1)
+        p = self.dequant(p)
+        v = self.dequant(v)
         return p, v
+    
+    def fuse(self):
+        quantization.fuse_modules(self, ['cnn1', 'bn1', 'relu1'], inplace=True)
+        for block in self.res_blocks:
+            block.fuse()
+        quantization.fuse_modules(self.p_head, ['0', '1', '2'], inplace=True)
+        quantization.fuse_modules(self.v_head, ['0', '1', '2'], inplace=True)
+        quantization.fuse_modules(self.v_head, ['4', '5'], inplace=True)
+    
+    def quantize(self):
+        self.qconfig = quantization.get_default_qat_qconfig('fbgemm')
     
     @staticmethod
     def preprocess(chessboard: ChessBoard) -> torch.Tensor:
@@ -82,7 +105,7 @@ class Net(nn.Module):
                 get_mask(chessboard.cross[-chessboard.now_playing]),
             ),
             dim=0
-        ).float()
+        ).float().unsqueeze(0)
         return feature
     
     @staticmethod

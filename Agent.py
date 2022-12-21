@@ -23,6 +23,7 @@ class Agent(object):
         size: int = 15,
         win_len: int = 5,
         max_searches: int = 10000,
+        explore: bool = False,
         net: Optional[Net] = None
     ) -> None:
         '''
@@ -44,6 +45,7 @@ class Agent(object):
         self.win_len = win_len
         self.chess_board = ChessBoard(size=size, win_len=win_len)
         self.max_searches = max_searches
+        self.explore = explore
         self.net = net
         if net is not None:
             net.eval()
@@ -140,6 +142,25 @@ class Agent(object):
         ]
         idxmax = visits_list.index(max(visits_list))
         return self.current_node.children[idxmax]
+    
+    def eplore_child(self, temp:float) -> Node:
+        '''
+        ## Returns\n
+        out: Node
+            Sample the child of the root with probability proptional to N^{1/temp}.
+        '''
+        for child in self.current_node.children:
+            if child.is_ended:
+                return child
+        visits_list = [
+            child.visits for child in self.current_node.children
+        ]
+        prob = np.array(visits_list) ** (1 / temp)
+        dice = np.random.uniform() * prob.sum()
+        prob = np.cumsum(prob)
+        for i in range(len(visits_list)):
+            if prob[i] >= dice:
+                return self.current_node.children[i]
 
     def expand_current_node(self) -> None:
         '''
@@ -221,6 +242,8 @@ class Agent(object):
         if self.chess_board.is_ended():
             return
         chess_board_copy = copy.deepcopy(self.chess_board)
+        check_time_interval = 100
+        left_time = 4
         for step in range(self.max_searches):
             # print('Searching: ', end='')
             # print(round(float(_) * 100 / self.max_searches), end='%\r')
@@ -243,23 +266,25 @@ class Agent(object):
                 self.back_propagate(self.eval_value())
             else:
                 self.back_propagate(self.roll_out())
-            
-            self.chess_board = self.current_node.chess_board
+
             self.chess_board = copy.deepcopy(chess_board_copy)
-            if step % 10 == 0 and start_time is not None and time.clock() - start_time > 3.8:
-                break
-            #self.chess_board.moves = self.chess_board.moves[0:self.root.depth]
-            #self.chess_board.board = [
-            #    [0 for _ in range(self.board_size)]
-            #    for _ in range(self.board_size)
-            #]
-            #color = 1
-            #for move in self.chess_board.moves:
-            #    self.chess_board.board[move[0]][move[1]] = color
-            #    color = -color
-            #self.chess_board.now_playing = -self.root.color
-            #self.chess_board.winner = 0
-        best_move = self.best_child().move
+            if start_time is not None:
+                if left_time <= 0.5:
+                    if step % 5 == 4:
+                        left_time = 4 - (time.clock() - start_time)
+                elif left_time <= 1:
+                    if step % 10 == 9:
+                        left_time = 4 - (time.clock() - start_time)
+                else:
+                    if step % 20 == 19:
+                        left_time = 4 - (time.clock() - start_time)
+                if left_time < 0.2:
+                    break
+        if self.explore and len(self.chess_board.moves) <= 10:
+            best_move = self.eplore_child(1).move
+            #best_move = self.eplore_child(1 / np.sqrt(len(self.chess_board.moves))).move
+        else:
+            best_move = self.best_child().move
         if hasattr(self, 'episode'):
             feature = Net.preprocess(self.chess_board).bool()
             prob = torch.zeros((self.board_size, self.board_size))

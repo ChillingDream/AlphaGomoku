@@ -7,11 +7,11 @@ import time
 DEBUG = False
 
 if DEBUG:
-    checkpoint = torch.load('checkpoints/best_resnet5.pt', map_location='cpu')
+    checkpoint = torch.load('checkpoints/resnet5_v3.pt', map_location='cpu')
 else:
-    checkpoint = torch.load('data/gomoku/best_resnet5.pt', map_location='cpu')
+    checkpoint = torch.load('data/gomoku/resnet5_v3.pt', map_location='cpu')
 
-net = Net(15, 64)
+net = Net(15, 64, num_blocks=2)
 net.load_state_dict(checkpoint)
 net.eval()
 
@@ -27,7 +27,7 @@ round = 0
 while True:
     round += 1
     if DEBUG:
-        x, y = json.loads(input())
+        x, y = eval(input())
     else:
         fullInput = json.loads(input())
         if round == 1:

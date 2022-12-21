@@ -5,12 +5,13 @@ from torch import quantization
 
 
 class ResidualBlock(nn.Module):
-    def __init__(self, input_size, hidden_size):
+    def __init__(self, input_size, hidden_size, kernel_size=3):
         super().__init__()
-        self.cnn1 = nn.Conv2d(input_size, hidden_size, 3, padding=1)
+        padding = kernel_size // 2
+        self.cnn1 = nn.Conv2d(input_size, hidden_size, kernel_size, padding=padding)
         self.bn1 = nn.BatchNorm2d(hidden_size)
         self.relu1 = nn.ReLU(True)
-        self.cnn2 = nn.Conv2d(hidden_size, hidden_size, 3, padding=1)
+        self.cnn2 = nn.Conv2d(hidden_size, hidden_size, kernel_size, padding=padding)
         self.bn2 = nn.BatchNorm2d(hidden_size)
         self.relu2 = nn.ReLU(True)
         self.skip = nn.quantized.FloatFunctional()
@@ -27,13 +28,13 @@ class ResidualBlock(nn.Module):
 class Net(nn.Module):
     num_channels = 15
 
-    def __init__(self, board_size, hidden_size, num_blocks=2):
+    def __init__(self, board_size, hidden_size, num_blocks=2, kernel_size=3):
         super().__init__()
         self.cnn1 = nn.Conv2d(Net.num_channels, hidden_size, 5, padding=2)
         self.bn1 = nn.BatchNorm2d(hidden_size)
         self.relu1 = nn.ReLU(inplace=True)
         self.res_blocks = nn.Sequential(
-            *[ResidualBlock(hidden_size, hidden_size) for _ in range(num_blocks)]
+            *[ResidualBlock(hidden_size, hidden_size, kernel_size) for _ in range(num_blocks)]
         )
         self.p_head = nn.Sequential(
             nn.Conv2d(hidden_size, 2, 1),

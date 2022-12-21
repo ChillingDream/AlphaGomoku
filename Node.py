@@ -37,7 +37,6 @@ class Node(object):
         self.is_ended = is_ended
         self.value = 0
         self.eval_value = None
-        self.chess_board = None
         self.visits = 0
         self.children: List[Node] = []
         return

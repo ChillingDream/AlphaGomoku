@@ -196,6 +196,21 @@ class ChessBoard(object):
                         if move[1]-j < 0 or move[1]-j >= self.size:
                             continue
                         vacancies.add((move[0]-i, move[1]-j))
+
+                if self.board[move[0]][move[1]] == self.now_playing:
+                    for i in [-1, 1]:
+                        if move[0]-i < 0 or move[0]-i >= self.size:
+                            continue
+                        for j in [-1, 1]:
+                            if move[1]-j < 0 or move[1]-j >= self.size:
+                                continue
+                            vacancies.add((move[0]-i, move[1]-j))
+                    for i, j in [(0, 2), (0, -2), (2, 0), (-2, 0)]:
+                        if move[0]-i < 0 or move[0]-i >= self.size:
+                            continue
+                        if move[1]-j < 0 or move[1]-j >= self.size:
+                            continue
+                        vacancies.add((move[0]-i, move[1]-j))
             occupied = set(self.moves)
             vacancies -= occupied
         return vacancies

@@ -108,6 +108,44 @@ class Net(nn.Module):
             dim=0
         ).float().unsqueeze(0)
         return feature
+
+    @staticmethod
+    def preprocess_explore(chessboard: ChessBoard) -> torch.Tensor:
+        board = torch.tensor(chessboard.board)
+        count = torch.tensor(chessboard.count)
+        def get_mask(*points_group: set):
+            mask = torch.zeros_like(board)
+            for points in points_group:
+                for point in points:
+                    mask[point] = 1
+            return mask
+        feature = torch.stack(
+            (
+                board == 0,
+                board == chessboard.now_playing,
+                board == -chessboard.now_playing,
+                (count == 3) & (board == chessboard.now_playing),
+                (count == 4) & (board == chessboard.now_playing),
+                get_mask(chessboard.link3[chessboard.now_playing]),
+                get_mask(chessboard.link4[chessboard.now_playing]),
+                get_mask(chessboard.link5[chessboard.now_playing]),
+                get_mask(chessboard.par_link3[chessboard.now_playing]),
+                get_mask(chessboard.par_link4[chessboard.now_playing]),
+                get_mask(chessboard.cross[chessboard.now_playing],
+                         chessboard.par_cross[chessboard.now_playing]),
+                (count == 3) & (board == -chessboard.now_playing),
+                (count == 4) & (board == -chessboard.now_playing),
+                get_mask(chessboard.link3[-chessboard.now_playing]),
+                get_mask(chessboard.link4[-chessboard.now_playing]),
+                get_mask(chessboard.link5[-chessboard.now_playing]),
+                get_mask(chessboard.par_link3[-chessboard.now_playing]),
+                get_mask(chessboard.par_link4[-chessboard.now_playing]),
+                get_mask(chessboard.cross[-chessboard.now_playing],
+                         chessboard.par_cross[-chessboard.now_playing]),
+            ),
+            dim=0
+        ).float().unsqueeze(0)
+        return feature
     
     @staticmethod
     def normalize_prob(p: torch.tensor, vacancies: set) -> torch.tensor:

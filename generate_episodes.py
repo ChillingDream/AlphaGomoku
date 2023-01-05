@@ -10,12 +10,12 @@ from Agent import Agent
 import time
 
 torch.set_num_threads(1)
-#net1 = torch.jit.load('checkpoints/resnet5_int8_v2.pt')
-#net2 = torch.jit.load('checkpoints/resnet5_int8_v1.pt')
+#net1 = torch.jit.load('checkpoints/resnet5_int8_v3.pt')
+#net2 = torch.jit.load('checkpoints/resnet5_int8_v3.pt')
 net1 = Net(15, 64)
-net1.load_state_dict(torch.load('checkpoints/resnet5_v3.pt', map_location='cpu'))
+net1.load_state_dict(torch.load('checkpoints/resnet5_v4.pt', map_location='cpu'))
 net2 = Net(15, 64)
-net2.load_state_dict(torch.load('checkpoints/resnet5_v2.pt', map_location='cpu'))
+net2.load_state_dict(torch.load('checkpoints/resnet5_v4.pt', map_location='cpu'))
 
 
 def generate_episode(netA=None, netB=None, self_play=False, max_searches=1200, seed=0):
@@ -106,4 +106,4 @@ if __name__ == '__main__':
         win += is_won
         episodes += episode
         if i % args.save_steps == args.save_steps - 1:
-            torch.save({'total': i + 1 - start_seed, 'win': win, 'episodes': episodes, 'avg_turns': len(episodes) / (i + 1)}, f'{save_dir}/episodes_{args.shard}.pt')
+            torch.save({'total': i + 1 - start_seed, 'win': win, 'episodes': episodes, 'avg_turns': len(episodes) / (i + 1 - start_seed)}, f'{save_dir}/episodes_{args.shard}.pt')

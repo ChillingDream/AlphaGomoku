@@ -280,13 +280,12 @@ class Agent(object):
                         left_time = 4 - (time.clock() - start_time)
                 if left_time < 0.2:
                     break
-        if self.explore and len(self.chess_board.moves) <= 10:
+        if self.explore:
             best_move = self.eplore_child(1).move
-            #best_move = self.eplore_child(1 / np.sqrt(len(self.chess_board.moves))).move
         else:
             best_move = self.best_child().move
         if hasattr(self, 'episode'):
-            feature = Net.preprocess(self.chess_board).bool()
+            feature = Net.preprocess_explore(self.chess_board).bool()
             prob = torch.zeros((self.board_size, self.board_size))
             total_visits = 0
             for child in self.current_node.children:

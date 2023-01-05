@@ -7,9 +7,9 @@ import time
 DEBUG = False
 
 if DEBUG:
-    checkpoint = torch.load('checkpoints/resnet5_v3.pt', map_location='cpu')
+    checkpoint = torch.load('checkpoints/resnet5_v4.pt', map_location='cpu')
 else:
-    checkpoint = torch.load('data/gomoku/resnet5_v3.pt', map_location='cpu')
+    checkpoint = torch.load('data/gomoku/resnet5_v4.pt', map_location='cpu')
 
 net = Net(15, 64, num_blocks=2)
 net.load_state_dict(checkpoint)

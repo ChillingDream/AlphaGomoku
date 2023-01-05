@@ -134,3 +134,6 @@ dmypy.json
 # checkpoint file
 *.pt
 episodes_data
+
+*.txt
+*.zip

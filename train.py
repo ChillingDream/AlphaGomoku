@@ -13,10 +13,9 @@ from tqdm import tqdm
 import optuna
 
 torch.set_num_threads(1)
-num_epochs = 50
+num_epochs = 60
 load_path = 'checkpoints/resnet5_v3.pt'
-load_path = None
-quant = False
+quant = True
 name = 'resnet5'
 if quant:
     name += '_int8'
@@ -68,7 +67,7 @@ def read_episodes(path):
 
 
 path = 'episodes_data/episodes.pt'
-path2 = 'episodes_data/history/episodes_v2.pt'
+path2 = None
 data = read_episodes(path)
 if path2 is not None:
     episodes2 = read_episodes(path2)
@@ -109,7 +108,7 @@ def train(lr, batch_size, weight_decay, save_model, display=True):
         net.quantize()
         quantization.prepare_qat(net, inplace=True)
     opt = torch.optim.AdamW(net.parameters(), lr=lr, weight_decay=weight_decay)
-    train_dataloder = DataLoader(train_ds, batch_size, num_workers=4, shuffle=True)
+    train_dataloder = DataLoader(train_ds, batch_size, num_workers=0, shuffle=True)
     test_dataloder = DataLoader(test_ds, batch_size, shuffle=False, pin_memory=True)
     min_test_loss = 1e10
     for epoch in range(num_epochs):
@@ -168,7 +167,7 @@ def objective(trial):
 
 os.makedirs('checkpoints', exist_ok=True)
 #test()
-train(5e-3, 319, 1e-4, True)
+train(2e-3, 414, 1e-3, True)
 exit(0)
 study = optuna.create_study(study_name='train', direction='minimize')
 study.optimize(objective, n_trials=5)
